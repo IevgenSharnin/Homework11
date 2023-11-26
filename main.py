@@ -3,8 +3,8 @@ from datetime import datetime
 
 class Field:
     def __init__(self, value):
-        self.value = value
         self.__value = None
+        self.value = value
 
     @property
     def value(self):
@@ -15,16 +15,20 @@ class Field:
         self.__value = value
 
     def __str__(self):
-        return str(self.__value)
+        return str(self.value)
 
 class Name(Field):
     def __init__(self, value):
-        self._Field__value = value.title()
+        self.value = value.title()
 
 class Birthday(Field):
     def __init__(self, value):
+        super().__init__(value)
+
+    @Field.value.setter
+    def value (self, new_value):
         try:
-            self.value = datetime.strptime (value, '%d.%m.%Y').date()
+            self._Field__value = datetime.strptime (new_value, '%d.%m.%Y').date()
         except:
             raise ValueError ('Wrong format for birthday')
 
@@ -33,11 +37,11 @@ class Phone(Field):
         super().__init__(value)
 
     @Field.value.setter
-    def value (self, value):
-        if (len (value) != 10) or (not value.isdigit()):
+    def value (self, new_value):
+        if (len (new_value) != 10) or (not new_value.isdigit()):
             raise ValueError ('Phone number should have 10 digit.')
         else:
-            super().value = value
+            self._Field__value = new_value
 
 class Record:
     def __init__(self, name, birthday=0):
@@ -106,18 +110,23 @@ class Record:
 
     def __str__(self):
         try:
-            return f"Contact name: {self.name.value}; \
-phones: {', '.join(p.value for p in self.phones)}, birthday: {self.birthday}"
+            return f"Contact name: {self.name._Field__value}; \
+phones: {', '.join(p.value for p in self.phones)}; birthday: {self.birthday}"
         except AttributeError:
-            return f"Contact name: {self.name.value}; phones: no phones added, birthday: {self.birthday}"
+            return f"Contact name: {self.name._Field__value}; phones: no phones added; birthday: {self.birthday}"
 
 class AddressBook(UserDict):
     def __init__(self):
         self.data = {}
+        self.count_for_print = 0
 
     def add_record (self, record: Record):
+        print (f'LEN of dict before add: {len (self.data)}')
         self.data.update ({record.name.value: record})
         print (f"Contact '{record.name.value}' added\n")
+        print (f'LEN of dict after add: {len (self.data)}')
+ #       print (type (self.data [list (self.data.keys()) [0]]))
+ #       print (self.data [list (self.data.keys()) [0]])
 
     def find (self, name):
         self.name = Name (name)
@@ -129,8 +138,24 @@ class AddressBook(UserDict):
             print (f"Contact '{record_deleted}' deleted\n")
         else:
             print (f"Contact book don't have contact '{record}'\n")
+    
+    def __next__(self):
+        print (f'Count for print: {self.count_for_print}')
+        print (f'LEN of dict in iter {len(self.data)}')
+        if self.count_for_print < len (self.data):
+            self.count_for_print += 1
+            print (self.data [list (self.data.keys()) [self.count_for_print - 1]])
+            return (self.data [list (self.data.keys()) [self.count_for_print - 1]])
+        raise StopIteration
+
+class PrintIterator:
+    def __iter__(self):
+        return AddressBook()
 
 if __name__ == "__main__":
+#    dd = {"a": '1', 'b': '2', 'c': '3'}
+#    print (len (dd), list(dd.keys())[1], dd [list(dd.keys())[1]])
+
  # Створення нової адресної книги
     book = AddressBook()
 
@@ -138,7 +163,7 @@ if __name__ == "__main__":
     print ('-----Створення запису для John-----')
     john_record = Record("john")
     john_record.add_phone("1234567890")
-    john_record.add_phone("5555555555f")
+    john_record.add_phone("5555555555")
     john_record.add_birthday("10.02.2021")
 
 # Додавання запису John до адресної книги
@@ -146,21 +171,21 @@ if __name__ == "__main__":
     book.add_record(john_record)
 
 # Створення та додавання нового запису для Jane
-#    print ('-----Створення та додавання нового запису для Jane-----')
-#    jane_record = Record("jane")
-#    jane_record.add_phone("9876543210")
-#    book.add_record(jane_record)
+    print ('-----Створення та додавання нового запису для Jane-----')
+    jane_record = Record("jane")
+    jane_record.add_phone("9876543210")
+    book.add_record(jane_record)
 
 # Виведення всіх записів у книзі
     print ('-----Виведення всіх записів у книзі-----')
-    for name, record in book.data.items():
+    for record in PrintIterator(): #book.data.items():
         print(record)
         try:
-            print(f"Days to next {name}'s birthday: {record.days_to_birthday()}")
+            print(f"Days to next name's birthday: {record.days_to_birthday()}")
         except ValueError:
             pass
         except AttributeError:
-            print(f"I can't calculate days to next b-day for {record.birthday}")
+            print(f"I can't calculate days to next b-day for date {record.birthday}")
     print ('')
 
 # Знаходження та редагування телефону для John
