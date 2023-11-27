@@ -1,6 +1,6 @@
 from collections import UserDict
 from datetime import datetime
-
+# Клас-"батько" для кожного поля у довіднику
 class Field:
     def __init__(self, value):
         self.__value = None
@@ -16,11 +16,11 @@ class Field:
 
     def __str__(self):
         return str(self.value)
-
+# Клас для імені контакта - зберігаємо з першою великою літерою
 class Name(Field):
     def __init__(self, value):
         self.value = value.title()
-
+# Клас для дня народження контакта - перевірка на формат "ДД.ММ.РРРР"
 class Birthday(Field):
     def __init__(self, value):
         super().__init__(value)
@@ -31,7 +31,7 @@ class Birthday(Field):
             self._Field__value = datetime.strptime (new_value, '%d.%m.%Y').date()
         except:
             raise ValueError ('Wrong format for birthday')
-
+# Клас для номера телефона контакта - перевірка на значення 10 цифр
 class Phone(Field):
     def __init__(self, value):
         super().__init__(value)
@@ -42,7 +42,8 @@ class Phone(Field):
             raise ValueError ('Phone number should have 10 digit.')
         else:
             self._Field__value = new_value
-
+# Клас для усього запису довідника: ім'я + телефони(кілька) + день народження
+# Плюс розрахунок дней до наступної дати народження плюс принтування запису
 class Record:
     def __init__(self, name, birthday=0):
         self.name = Name(name)
@@ -114,19 +115,16 @@ class Record:
 phones: {', '.join(p.value for p in self.phones)}; birthday: {self.birthday}"
         except AttributeError:
             return f"Contact name: {self.name._Field__value}; phones: no phones added; birthday: {self.birthday}"
-
+# Клас для усієї книжки: 
+# керування записами + видача порцій записів для посторінкового друку
 class AddressBook(UserDict):
     def __init__(self):
         self.data = {}
         self.count_for_print = 0
 
     def add_record (self, record: Record):
-        print (f'LEN of dict before add: {len (self.data)}')
         self.data.update ({record.name.value: record})
         print (f"Contact '{record.name.value}' added\n")
-        print (f'LEN of dict after add: {len (self.data)}')
- #       print (type (self.data [list (self.data.keys()) [0]]))
- #       print (self.data [list (self.data.keys()) [0]])
 
     def find (self, name):
         self.name = Name (name)
@@ -140,22 +138,30 @@ class AddressBook(UserDict):
             print (f"Contact book don't have contact '{record}'\n")
     
     def __next__(self):
-        print (f'Count for print: {self.count_for_print}')
-        print (f'LEN of dict in iter {len(self.data)}')
+        if not self.count_for_print:
+            while True:
+                number_records_on_page = input ('How many records on page do you want? ')
+                self.number_records_on_page = number_records_on_page
+                if self.number_records_on_page.isdigit():
+                    break
+        records_on_page = {}
         if self.count_for_print < len (self.data):
-            self.count_for_print += 1
-            print (self.data [list (self.data.keys()) [self.count_for_print - 1]])
-            return (self.data [list (self.data.keys()) [self.count_for_print - 1]])
+            for _ in range (0, int(self.number_records_on_page)):
+                if self.count_for_print < len (self.data):
+                    records_on_page [list (self.data.keys()) [self.count_for_print - 1]] =\
+                                self.data [list (self.data.keys()) [self.count_for_print - 1]]
+                    self.count_for_print += 1
+            return records_on_page
         raise StopIteration
-
+# Клас-"ітератор" для посторінкового друку
 class PrintIterator:
+    def __init__(self, addr_book: AddressBook):
+        self.addr_book = addr_book
+
     def __iter__(self):
-        return AddressBook()
+        return self.addr_book
 
 if __name__ == "__main__":
-#    dd = {"a": '1', 'b': '2', 'c': '3'}
-#    print (len (dd), list(dd.keys())[1], dd [list(dd.keys())[1]])
-
  # Створення нової адресної книги
     book = AddressBook()
 
@@ -176,16 +182,41 @@ if __name__ == "__main__":
     jane_record.add_phone("9876543210")
     book.add_record(jane_record)
 
+# Створення запису для John&Jane
+    print ('-----Створення запису для John&Jane-----')
+    jo_ja_record = Record("John&Jane")
+    jo_ja_record.add_phone("1234567890")
+    jo_ja_record.add_phone("5555555555")
+    jo_ja_record.add_birthday("10.02.2025")
+    book.add_record(jo_ja_record)
+
+# Створення запису для Jane&John
+    print ('-----Створення запису для Jane&John-----')
+    ja_jo_record = Record("Jane&John")
+    ja_jo_record.add_phone("1234567890")
+    ja_jo_record.add_phone("5555555555")
+    ja_jo_record.add_birthday("10.12.2021")
+    book.add_record(ja_jo_record)
+
 # Виведення всіх записів у книзі
     print ('-----Виведення всіх записів у книзі-----')
-    for record in PrintIterator(): #book.data.items():
-        print(record)
-        try:
-            print(f"Days to next name's birthday: {record.days_to_birthday()}")
-        except ValueError:
-            pass
-        except AttributeError:
-            print(f"I can't calculate days to next b-day for date {record.birthday}")
+    pages_to_print = PrintIterator(book)
+    page = 1
+    for records_on_page in pages_to_print: #book.data.items():
+        print (f'--- Page {page} ---')
+        page += 1
+        for record in records_on_page.values():
+            print(record)
+            try:
+                print(f"Days to next {record.name}'s birthday: {record.days_to_birthday()}\n")
+            except ValueError:
+                print ('')
+            except AttributeError:
+                print(f"I can't calculate days to next b-day for date {record.birthday}")
+        if book.count_for_print < len (book.data):
+            input ('\nPress Enter for print next page\n')
+        else:
+            print (f'--- End of book ---')
     print ('')
 
 # Знаходження та редагування телефону для John
